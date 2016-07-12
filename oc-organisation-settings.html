@@ -1,0 +1,115 @@
+<link rel="import" href="../polymer/polymer.html">
+<link rel="import" href="../paper-material/paper-material.html">
+
+<!--
+`oc-organisation-settings`
+Element for capture and display of organisation settings
+
+@demo demo/index.html 
+-->
+
+<dom-module id="oc-organisation-settings">
+  <template>
+    <style>
+      :host {
+        display: block;
+      }
+      paper-material {
+        padding: 10px;
+      }
+    </style>
+
+    <template is="dom-repeat" items="[[ categories ]]">
+      <paper-material>
+        <h3>[[ item.category ]]</h3>
+        <template is="dom-repeat" items="[[ item.settings ]]">
+          <template is="dom-if" if="[[ _isText(item) ]]">
+            <div>[[ item.description ]]</div>
+            <div>[[ item.value ]]</div>
+          </template>
+          <template is="dom-if" if="[[ _isBoolean(item) ]]">
+            <div>[[ item.description ]]</div>
+            <div>[[ item.value ]]</div>
+          </template>
+        </template>
+      </paper-material>
+    </template>
+
+
+  </template>
+
+  <script>
+    Polymer({
+
+      is: 'oc-organisation-settings',
+
+      properties: {
+        settings: {
+          type: Array,
+          value: [],
+        },
+      },
+
+      observers: [
+        '_modifyCauseApiDontSupportCategoriesYet(settings)'
+      ],
+
+      /*ready: function () {
+        this.categories = [
+          { category:"Order Fulfilment",
+              settings:[{key:"self_pickup_allowed", value:"true", type:"Boolean", description:"Store allows self-pickups"},
+                        {key:"in_store_order_allowed", value:"true", type:"Boolean", description:"Store allows in-store ordering"},
+                        {key:"delivery_allowed", value:"true", type:"Boolean", description:"Store allows deliveries"}]},
+          { category:"Order Status Monitoring", settings:[{key:"time_in_accepted", value:"12", type:"String", description:"Minutes allowed for an order to be PENDING"}]},
+          { category:"Orders", settings:[{key:"time_in_accepted", value:"12", type:"String", description:"Does the organisation want a notification email sent when an order is created"}]},
+        ]
+      },*/
+
+      _isText: function(setting) {
+        return setting.type === "String";
+      },
+
+      _isBoolean: function(setting) {
+        return setting.type === "Boolean";
+      },
+
+      _groupBy: function(xs, key) {
+        return xs.reduce(function(rv, x) {
+          (rv[x[key]] = rv[x[key]] || []).push(x);
+          return rv;
+        }, {});
+      },
+
+      _modifyCauseApiDontSupportCategoriesYet: function () {
+        for (var i in this.settings) {
+          if (!this.settings[i].category) {
+            if (this.settings[i].key.name === "self_pickup_allowed" ||
+                this.settings[i].key.name === "in_store_order_allowed" ||
+                this.settings[i].key.name === "delivery_allowed") {
+              this.settings[i].category = "Order Fulfilment";
+            } else
+            if (this.settings[i].key.name === "time_in_accepted" ||
+                    this.settings[i].key.name === "time_in_pending" ||
+                    this.settings[i].key.name === "time_in_collected" ||
+                    this.settings[i].key.name === "time_in_ready") {
+              this.settings[i].category = "Order Status Monitoring";
+            } else
+            if (this.settings[i].key.name === "order_created_notification_email" ||
+                    this.settings[i].key.name === "order_created_notification_email_address") {
+              this.settings[i].category = "Orders";
+            } else
+            if (this.settings[i].key.name === "org_self_deliver" ||
+                    this.settings[i].key.name === "delivery_fee_flat" ||
+                    this.settings[i].key.name === "delivery_fee_per_km" ||
+                    this.settings[i].key.name === "org_uses_external_delivery" ||
+                    this.settings[i].key.name === "estimated_delivery_time") {
+              this.settings[i].category = "Delivery";
+            } else {
+              this.settings[i].category = "Miscellaneous";
+            }
+          }
+        }
+      }
+    });
+  </script>
+</dom-module>
