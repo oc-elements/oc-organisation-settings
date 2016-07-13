@@ -1,23 +1,30 @@
 <link rel="import" href="../polymer/polymer.html">
 <link rel="import" href="../paper-material/paper-material.html">
+<link rel="import" href="../oc-settingkeys-api/oc-settingkeys-api.html">
+
 
 <!--
 `oc-organisation-settings`
 Element for capture and display of organisation settings
 
-@demo demo/index.html 
+@demo demo/index.html
 -->
 
 <dom-module id="oc-organisation-settings">
+  <style>
+    :host {
+      display: block;
+    }
+    paper-material {
+      background-color: #fff;
+      padding: 10px;
+      margin: 10px;
+    }
+  </style>
+
   <template>
-    <style>
-      :host {
-        display: block;
-      }
-      paper-material {
-        padding: 10px;
-      }
-    </style>
+
+    <oc-settingkeys-api id="settingKeysApi"></oc-settingkeys-api>
 
     <template is="dom-repeat" items="[[ categories ]]">
       <paper-material>
@@ -55,15 +62,15 @@ Element for capture and display of organisation settings
       ],
 
       /*ready: function () {
-        this.categories = [
-          { category:"Order Fulfilment",
-              settings:[{key:"self_pickup_allowed", value:"true", type:"Boolean", description:"Store allows self-pickups"},
-                        {key:"in_store_order_allowed", value:"true", type:"Boolean", description:"Store allows in-store ordering"},
-                        {key:"delivery_allowed", value:"true", type:"Boolean", description:"Store allows deliveries"}]},
-          { category:"Order Status Monitoring", settings:[{key:"time_in_accepted", value:"12", type:"String", description:"Minutes allowed for an order to be PENDING"}]},
-          { category:"Orders", settings:[{key:"time_in_accepted", value:"12", type:"String", description:"Does the organisation want a notification email sent when an order is created"}]},
-        ]
-      },*/
+       this.categories = [
+       { category:"Order Fulfilment",
+       settings:[{key:"self_pickup_allowed", value:"true", type:"Boolean", description:"Store allows self-pickups"},
+       {key:"in_store_order_allowed", value:"true", type:"Boolean", description:"Store allows in-store ordering"},
+       {key:"delivery_allowed", value:"true", type:"Boolean", description:"Store allows deliveries"}]},
+       { category:"Order Status Monitoring", settings:[{key:"time_in_accepted", value:"12", type:"String", description:"Minutes allowed for an order to be PENDING"}]},
+       { category:"Orders", settings:[{key:"time_in_accepted", value:"12", type:"String", description:"Does the organisation want a notification email sent when an order is created"}]},
+       ]
+       },*/
 
       _isText: function(setting) {
         return setting.type === "String";
@@ -73,41 +80,57 @@ Element for capture and display of organisation settings
         return setting.type === "Boolean";
       },
 
-      _groupBy: function(xs, key) {
+      _groupByCategory: function(xs) {
         return xs.reduce(function(rv, x) {
-          (rv[x[key]] = rv[x[key]] || []).push(x);
+          var category = rv.filter(function(cats) { return cats.category === x.category})[0] || {category:x.category, settings:[]};
+          category.settings.push(x);
+          if (!rv.some(function(element, index, array) { return element.category === x.category })) {
+            rv.push(category);
+          }
           return rv;
-        }, {});
+        }, []);
       },
 
       _modifyCauseApiDontSupportCategoriesYet: function () {
-        for (var i in this.settings) {
-          if (!this.settings[i].category) {
-            if (this.settings[i].key.name === "self_pickup_allowed" ||
-                this.settings[i].key.name === "in_store_order_allowed" ||
-                this.settings[i].key.name === "delivery_allowed") {
-              this.settings[i].category = "Order Fulfilment";
-            } else
-            if (this.settings[i].key.name === "time_in_accepted" ||
-                    this.settings[i].key.name === "time_in_pending" ||
-                    this.settings[i].key.name === "time_in_collected" ||
-                    this.settings[i].key.name === "time_in_ready") {
-              this.settings[i].category = "Order Status Monitoring";
-            } else
-            if (this.settings[i].key.name === "order_created_notification_email" ||
-                    this.settings[i].key.name === "order_created_notification_email_address") {
-              this.settings[i].category = "Orders";
-            } else
-            if (this.settings[i].key.name === "org_self_deliver" ||
-                    this.settings[i].key.name === "delivery_fee_flat" ||
-                    this.settings[i].key.name === "delivery_fee_per_km" ||
-                    this.settings[i].key.name === "org_uses_external_delivery" ||
-                    this.settings[i].key.name === "estimated_delivery_time") {
-              this.settings[i].category = "Delivery";
-            } else {
-              this.settings[i].category = "Miscellaneous";
+        if (this.settings.length > 0) {
+          for (var i in this.settings) {
+            if (!this.settings[i].category) {
+              if (this.settings[i].key.name === "self_pickup_allowed" ||
+                      this.settings[i].key.name === "in_store_order_allowed" ||
+                      this.settings[i].key.name === "delivery_allowed") {
+                this.settings[i].category = "Order Fulfilment";
+                this.settings[i].type = "Boolean";
+              } else
+              if (this.settings[i].key.name === "time_in_accepted" ||
+                      this.settings[i].key.name === "time_in_pending" ||
+                      this.settings[i].key.name === "time_in_collected" ||
+                      this.settings[i].key.name === "time_in_ready") {
+                this.settings[i].category = "Order Status Monitoring";
+                this.settings[i].type = "String";
+              } else
+              if (this.settings[i].key.name === "order_created_notification_email" ||
+                      this.settings[i].key.name === "order_created_notification_email_address") {
+                this.settings[i].category = "Orders";
+                this.settings[i].type = this.settings[i].key.name === "order_created_notification_email"
+                        ? "Boolean" : "String";
+              } else
+              if (this.settings[i].key.name === "org_self_deliver" ||
+                      this.settings[i].key.name === "delivery_fee_flat" ||
+                      this.settings[i].key.name === "delivery_fee_per_km" ||
+                      this.settings[i].key.name === "org_uses_external_delivery" ||
+                      this.settings[i].key.name === "estimated_delivery_time") {
+                this.settings[i].category = "Delivery";
+                this.settings[i].type =
+                        (this.settings[i].key.name === "org_self_deliver" || this.settings[i].key.name === "org_uses_external_delivery")
+                                ? "Boolean" : "String";
+              } else {
+                this.settings[i].category = "Miscellaneous";
+                this.settings[i].type = "String";
+              }
             }
           }
+
+          this.categories = this._groupByCategory(this.settings, 'category');
         }
       }
     });
