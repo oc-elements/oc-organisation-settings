@@ -5,7 +5,8 @@
   "dependencies": {
     "polymer": "Polymer/polymer#^1.4.0",
     "paper-material": "PolymerElements/paper-material#^1.0.6",
-    "oc-settingkeys-api": "git://github.com/oc-elements/oc-settingkeys-api#1.x"
+    "oc-settingkeys-api": "git://github.com/oc-elements/oc-settingkeys-api#1.x",
+    "oc-settingtags-api": "git://github.com/oc-elements/oc-settingtags-api#1.x"
   },
   "devDependencies": {
     "iron-component-page": "PolymerElements/iron-component-page#^1.0.0",
