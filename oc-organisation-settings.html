@@ -1,8 +1,9 @@
 <link rel="import" href="../polymer/polymer.html">
 <link rel="import" href="../paper-material/paper-material.html">
+
+<link rel="import" href="../oc-core-utils/oc-api-consumer-behaviour.html">
 <link rel="import" href="../oc-settingkeys-api/oc-settingkeys-api.html">
 <link rel="import" href="../oc-settingtags-api/oc-settingtags-api.html">
-
 
 <!--
 `oc-organisation-settings`
@@ -26,12 +27,12 @@ Element for capture and display of organisation settings
   <template>
 
     <oc-settingkeys-api id="settingKeysApi"></oc-settingkeys-api>
-    <oc-settingtags-api ad="settingTagsApi"></oc-settingtags-api>
+    <oc-settingtags-api id="settingTagsApi"></oc-settingtags-api>
 
     <template is="dom-repeat" items="[[ _categories ]]">
       <paper-material>
         <h3>[[ item.name ]]</h3>
-        <template is="dom-repeat" items="[[ _getCategorySettings(item) ]]">
+        <template is="dom-repeat" items="[[ item.keys ]]">
           <template is="dom-if" if="[[ _isText(item) ]]">
             <div>[[ item.description ]]</div>
             <div>[[ _getSettingValue(item.id) ]]</div>
@@ -49,8 +50,8 @@ Element for capture and display of organisation settings
 
   <script>
     Polymer({
-
       is: 'oc-organisation-settings',
+      behaviors: [OC.Behaviours.ApiConsumer],
 
       properties: {
         settings: {
@@ -59,9 +60,9 @@ Element for capture and display of organisation settings
         },
       },
 
-      observers: [
-        '_getCategories(settings)'
-      ],
+      /*observers: [
+       '_getCategories(settings)'
+       ],*/
 
       ready: function () {
         console.log("ready");
@@ -93,12 +94,12 @@ Element for capture and display of organisation settings
                 .then(this._setPropertyResponseResults.bind(this, '_tags'))
                 .catch(console.error)
                 .finally(function() {
-                    for (var i in this._tags) {
-                      settingsByTagPromises.push(this.$.settingKeysApi.getKeysByTag(this._tags[i].id)
-                              .then(function(response) {
-                                this._tags[i].keys = response.results;
-                              }.bind(this)))
-                    }
+                  for (var i in this._tags) {
+                    settingsByTagPromises.push(this.$.settingKeysApi.getKeysByTag(this._tags[i].id)
+                            .then(function(response) {
+                              this._tags[i].keys = response.results;
+                            }.bind(this)))
+                  }
                 }.bind(this));
         Promise.all(settingsByTagPromises)
                 .then(this.set.bind(this, '_categories', this._tags));
