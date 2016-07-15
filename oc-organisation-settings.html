@@ -1,5 +1,12 @@
 <link rel="import" href="../polymer/polymer.html">
+
 <link rel="import" href="../paper-material/paper-material.html">
+<link rel="import" href="../paper-input/paper-input.html">
+<link rel="import" href="../paper-toggle-button/paper-toggle-button.html">
+
+<link rel="import" href="../iron-label/iron-label.html">
+<link rel="import" href="../iron-flex-layout/iron-flex-layout.html">
+<link rel="import" href="../iron-flex-layout/iron-flex-layout-classes.html">
 
 <link rel="import" href="../oc-core-utils/oc-api-consumer-behaviour.html">
 <link rel="import" href="../oc-settingkeys-api/oc-settingkeys-api.html">
@@ -13,7 +20,7 @@ Element for capture and display of organisation settings
 -->
 
 <dom-module id="oc-organisation-settings">
-  <style>
+  <style include="iron-flex iron-flex-alignment">
     :host {
       display: block;
     }
@@ -22,6 +29,14 @@ Element for capture and display of organisation settings
       padding: 10px;
       margin: 10px;
     }
+    paper-input {
+      max-width:500px;
+    }
+    .toggleItem {
+      max-width:500px;
+      @apply(--layout-horizontal);
+      @apply(--layout-justified);
+    }
   </style>
 
   <template>
@@ -29,22 +44,22 @@ Element for capture and display of organisation settings
     <oc-settingkeys-api id="settingKeysApi"></oc-settingkeys-api>
     <oc-settingtags-api id="settingTagsApi"></oc-settingtags-api>
 
-    <template is="dom-repeat" items="[[ _categories ]]">
+    <template id="categoriesRepeater" is="dom-repeat" items="[[ _categories ]]">
       <paper-material>
         <h3>[[ item.name ]]</h3>
-        <template is="dom-repeat" items="[[ item.keys ]]">
-          <template is="dom-if" if="[[ _isText(item) ]]">
-            <div>[[ item.description ]]</div>
-            <div>[[ _getSettingValue(item.id) ]]</div>
+        <template is="dom-repeat" items="[[ item.keys ]]" as="settingKey">
+          <template is="dom-if" if="[[ !_isBoolean(settingKey) ]]">
+            <paper-input on-change="_settingChanged" settingKey="[[ settingKey ]]" label="[[ settingKey.description ]]" value="[[ _getSettingValue(settingKey, _settingsChanged) ]]"></paper-input>
           </template>
-          <template is="dom-if" if="[[ _isBoolean(item) ]]">
-            <div>[[ item.description ]]</div>
-            <div>[[ _getSettingValue(item.id) ]]</div>
+          <template is="dom-if" if="[[ _isBoolean(settingKey) ]]">
+            <div class="toggleItem">
+              <iron-label>[[ settingKey.description ]]</iron-label>
+              <paper-toggle-button on-change="_settingChanged" settingKey="[[ settingKey ]]" checked$="[[ _getSettingValue(settingKey, _settingsChanged) ]]"></paper-toggle-button>
+            </div>
           </template>
         </template>
       </paper-material>
     </template>
-
 
   </template>
 
@@ -60,50 +75,91 @@ Element for capture and display of organisation settings
         },
       },
 
-      /*observers: [
-       '_getCategories(settings)'
-       ],*/
+      observers: [
+        '_settingsChangedExternally(settings)'
+      ],
+
+      /*listeners: {
+       'change':'_textInputChanged'
+       },*/
 
       ready: function () {
-        console.log("ready");
         this._getCategories();
-      },
-
-      _isText: function(setting) {
-        return setting.type === "String";
-      },
-
-      _isBoolean: function(setting) {
-        return setting.type === "Boolean";
-      },
-
-      _groupByCategory: function(xs) {
-        return xs.reduce(function(rv, x) {
-          var category = rv.filter(function(cats) { return cats.category === x.category})[0] || {category:x.category, settings:[]};
-          category.settings.push(x);
-          if (!rv.some(function(element, index, array) { return element.category === x.category })) {
-            rv.push(category);
-          }
-          return rv;
-        }, []);
       },
 
       _getCategories: function () {
         var settingsByTagPromises = [];
         this.$.settingTagsApi.getSettingTags()
-                .then(this._setPropertyResponseResults.bind(this, '_tags'))
-                .catch(console.error)
-                .finally(function() {
+                .then(function(response) {
+                  this._tags = response.response.results;
                   for (var i in this._tags) {
-                    settingsByTagPromises.push(this.$.settingKeysApi.getKeysByTag(this._tags[i].id)
-                            .then(function(response) {
-                              this._tags[i].keys = response.results;
-                            }.bind(this)))
+                    settingsByTagPromises.push(this.$.settingKeysApi.getKeysByTag(this._tags[i].id));
                   }
-                }.bind(this));
-        Promise.all(settingsByTagPromises)
-                .then(this.set.bind(this, '_categories', this._tags));
+
+                  Promise.all(settingsByTagPromises)
+                          .then(function(values) {
+                            for (var i in values) {
+                              this._tags[i].keys = values[i].response.results;
+                              for (var j in this._tags[i].keys) {
+                                this._tags[i].keys[j].value = (this._tags[i].keys[j].valueType === "BOOLEAN")
+                                        ? false : ""
+                              }
+                            }
+                            this._categories = this._tags;
+                            console.log(values);
+                          }.bind(this));
+                }.bind(this))
+                .catch(console.error)
+                .finally(this.set.bind(this, '_categoriesReady', true));
+      },
+
+      _isBoolean: function(setting) {
+        return setting.valueType === "BOOLEAN";
+      },
+
+      _settingsChangedExternally: function() {
+        this._settingsChanged = !this._settingsChanged;
+      },
+
+      _getSettingValue: function(key) {
+        var setting = this.settings.filter(function(setting) {
+          return setting.key.id === key.id
+        });
+        var value;
+        if (setting.length === 1) {
+          value = setting[0].value;
+        } else {
+          value = (key.valueType === "BOOLEAN")
+                  ? false : "";
+        }
+        key.value = value;
+        return value;
+      },
+
+      _settingChanged: function(event) {
+        event.model.settingKey.value = event.currentTarget.value;
+      },
+
+      getChangedSettings: function() {
+        var changedSettings = [];
+        for (var i in this._categories) {
+          for (var j in this._categories[i].keys) {
+            var key = this._categories[i].keys[j];
+            var setting = this.settings.filter(function(setting) {
+              return setting.key.id === key.id
+            });
+            if (setting.length === 1 && setting[0].value != key.value) {
+              setting[0].value = key.value;
+              changedSettings.push(setting[0]);
+            } else if (setting.length === 0) {
+              changedSettings.push({value:key.value, key: {id:key.id, name:key.name}});
+            }
+          }
+        }
+
+        return changedSettings;
       }
+
     });
   </script>
 </dom-module>
